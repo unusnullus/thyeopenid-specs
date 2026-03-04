@@ -181,6 +181,19 @@ This system is designed to be compatible with an OpenID Connect style protocol l
 - **Relying Party (RP)**: service provider requesting KYC/KYB proof
 - **User Agent**: mobile Wallet-ID
 
+### Protocol Overview Diagram
+```mermaid
+graph LR
+  RP["Relying Party (RP)"] -->|Authorize request| OP["OpenID Provider (OP)"]
+  UA["User Agent (Wallet)"] -->|Consent + login| OP
+  OP -->|Auth code| RP
+  RP -->|Token request| OP
+  OP -->|ID token + access token| RP
+  RP -->|Proof request| UA
+  UA -->|ZK proof + proof_ref| RP
+  RP -->|Verify issuer + commitment| SC["Starknet Contracts"]
+```
+
 ### Core Endpoints (OIDC-like)
 - `/.well-known/openid-configuration`
 - `/authorize` (Authorization Code + PKCE)
@@ -198,6 +211,26 @@ This system is designed to be compatible with an OpenID Connect style protocol l
 4. RP validates token signature via `jwks.json` and checks `issuer`.
 5. RP requests ZK proof from `/proof` or via Wallet direct channel.
 6. RP verifies proof + on-chain commitment + issuer allowlist.
+
+### Sequence Diagram (Authorization + Proof)
+```mermaid
+sequenceDiagram
+  participant RP as Relying Party
+  participant UA as User Agent (Wallet)
+  participant OP as OpenID Provider
+  participant SC as Starknet Contracts
+
+  RP->>OP: /authorize (scopes, state, nonce, PKCE)
+  OP->>UA: Consent + login request
+  UA->>OP: Consent approved
+  OP->>RP: Authorization code
+  RP->>OP: /token (code + PKCE)
+  OP->>RP: id_token + access_token
+  RP->>UA: Proof request (required claims)
+  UA->>RP: ZK proof + proof_ref
+  RP->>SC: Verify issuer + commitment + revocation
+  SC-->>RP: On-chain verification result
+```
 
 ### Claims Model (OIDC-aligned)
 - Use `claims` in the `id_token` and/or `userinfo`.
