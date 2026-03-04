@@ -195,29 +195,14 @@ This system is designed to be compatible with an OpenID Connect style protocol l
 - Use `claims` in the `id_token` and/or `userinfo`.
 - For privacy, return **proof references** or **verified_claims** rather than raw PII.
 
-Example `id_token` (claims reduced):
-```json
-{
-  "iss": "https://issuer.example",
-  "sub": "0xUserStarknetAddress",
-  "aud": "did:provider:0xdef...",
-  "exp": 1710000600,
-  "iat": 1710000000,
-  "nonce": "0xRandomNonce",
-  "verified_claims": {
-    "verification": {
-      "trust_framework": "kyc_kyb",
-      "assurance_level": "high"
-    },
-    "claims": {
-      "age_over": 18,
-      "residency": "US",
-      "sanctions_free": true
-    }
-  },
-  "proof_ref": "0xProofRequestId"
-}
-```
+Example `id_token` fields (claims reduced):
+- `iss`: issuer URL
+- `sub`: user Starknet address
+- `aud`: provider identifier
+- `exp`, `iat`: token lifetime
+- `nonce`: binds the session and prevents replay
+- `verified_claims`: high-level verification context and minimal claim results
+- `proof_ref`: reference to a ZK proof artifact
 
 ## How KYC Consumers Should Operate
 KYC consumers (relying parties) should avoid handling raw PII and instead work with proofs and minimal claims. The recommended model is **proof-based access** with explicit user consent and strict data minimization.
@@ -244,123 +229,65 @@ KYC consumers (relying parties) should avoid handling raw PII and instead work w
 - **User consent**: require explicit consent for every proof request.
 - **Reverification**: enforce expiry and re-check revocation for each use.
 
-### Example Consumer Audit Record
-```json
-{
-  "customer_id": "internal-id-123",
-  "proof_ref": "0xProofRequestId",
-  "issuer_id": "did:issuer:0xabc...",
-  "verified_at": 1710000600,
-  "claims_satisfied": {
-    "age_over": true,
-    "residency": true,
-    "sanctions_free": true
-  },
-  "attestation_commitment": "0xCommitmentHash",
-  "revocation_checked": true
-}
-```
+### Example Consumer Audit Record (Human-Readable)
+- Customer reference: internal customer ID
+- Proof reference: the proof request ID
+- Issuer: issuer ID used for verification
+- Timestamp: when the proof was verified
+- Claims satisfied: list of booleans for requested claims
+- Commitment: attestation commitment reference
+- Revocation: whether revocation was checked
 
 ## Schemas
 All schemas are JSON-compatible and stored/transported off-chain unless noted. Define claim schemas and circuit specs as versioned, provider-consumable artifacts.
 
 ### 1) Issuer (On-Chain)
-```json
-{
-  "issuer_id": "did:issuer:0xabc...",
-  "starknet_address": "0x01...",
-  "public_key": "0x02...",
-  "status": "active",
-  "created_at": 1710000000,
-  "updated_at": 1710000100
-}
-```
+- Issuer ID and Starknet address
+- Public key for signature verification
+- Status (active / revoked / rotated)
+- Created and updated timestamps
 
 ### 2) Attestation (Off-Chain Signed Payload)
-```json
-{
-  "attestation_id": "uuid",
-  "issuer": "did:issuer:0xabc...",
-  "subject": "0xUserStarknetAddress",
-  "claims": {
-    "age_over": 18,
-    "residency": "US",
-    "sanctions_free": true,
-    "entity_type": "LLC"
-  },
-  "issued_at": 1710000000,
-  "expires_at": 1740000000,
-  "revocation_ref": "0xRevocationHash",
-  "document_commitment": "0xCommitmentHash",
-  "schema_version": "1.0.0"
-}
-```
+- Attestation ID
+- Issuer ID and subject (user wallet address)
+- Claims (age over, residency, sanctions-free, entity type)
+- Issued at and expiry timestamps
+- Revocation reference
+- Document commitment reference
+- Schema version
 
 ### 3) Attestation Commitment (On-Chain)
-```json
-{
-  "commitment": "0xPoseidonOrKeccakHash",
-  "issuer_id": "did:issuer:0xabc...",
-  "subject": "0xUserStarknetAddress",
-  "issued_at": 1710000000,
-  "expires_at": 1740000000,
-  "schema_version": "1.0.0"
-}
-```
+- Commitment hash
+- Issuer ID and subject address
+- Issued and expiry timestamps
+- Schema version
 
 ### 4) Proof Request (Provider -> Wallet)
-```json
-{
-  "request_id": "uuid",
-  "provider_id": "did:provider:0xdef...",
-  "required_claims": {
-    "age_over": 18,
-    "residency": "US",
-    "sanctions_free": true
-  },
-  "nonce": "0xRandomNonce",
-  "valid_until": 1710000500,
-  "schema_version": "1.0.0"
-}
-```
+- Request ID and provider ID
+- Required claims (minimum necessary)
+- Nonce for replay protection
+- Validity window
+- Schema version
 
 ### 5) Proof Response (Wallet -> Provider)
-```json
-{
-  "request_id": "uuid",
-  "subject": "0xUserStarknetAddress",
-  "attestation_commitment": "0xCommitmentHash",
-  "proof": "0xZKProofBytes",
-  "public_inputs": {
-    "issuer_id": "did:issuer:0xabc...",
-    "claims_hash": "0xClaimsHash",
-    "nonce": "0xRandomNonce",
-    "provider_id": "did:provider:0xdef..."
-  },
-  "schema_version": "1.0.0"
-}
-```
+- Request ID and user address
+- Attestation commitment reference
+- ZK proof artifact
+- Public inputs (issuer ID, claims hash, nonce, provider ID)
+- Schema version
 
 ### 6) Revocation Record (On-Chain)
-```json
-{
-  "revocation_ref": "0xRevocationHash",
-  "issuer_id": "did:issuer:0xabc...",
-  "revoked_at": 1710000200
-}
-```
+- Revocation reference
+- Issuer ID
+- Revoked timestamp
 
 ### 7) Encrypted Document Metadata (Wallet Storage)
-```json
-{
-  "document_id": "uuid",
-  "ciphertext_ref": "s3://bucket/path or ipfs://cid",
-  "ciphertext_hash": "0xEncryptedBlobHash",
-  "encryption": "xchacha20-poly1305",
-  "key_ref": "local_secure_enclave_key",
-  "created_at": 1710000000
-}
-```
+- Document ID
+- Encrypted blob reference (S3/IPFS)
+- Encrypted blob hash
+- Encryption algorithm
+- Local key reference
+- Created timestamp
 
 ## ZK Proofs
 - Prove claims without revealing raw data.
