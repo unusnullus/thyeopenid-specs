@@ -9,6 +9,14 @@ Privacy-preserving, reusable KYC/KYB with ZK proofs and a mobile Wallet-ID. User
 - Traceable issuer lineage and revocations
 - Mobile-first wallet UX
 
+## Tech Stack (Node.js)
+- **Backend (Node.js)**: KYC/KYB orchestrator, issuer service, proof API, consent flows
+- **API layer**: REST/JSON with OIDC-compatible endpoints and proof extensions
+- **ZK services**: prover worker pool, circuit registry, proof cache
+- **Mobile wallet**: secure key storage, encrypted document vault, proof request UI
+- **Storage**: encrypted blob store (S3/IPFS) + metadata index
+- **Observability**: audit logs, issuer actions, proof verification traces
+
 ## High-Level Architecture
 1. **Mobile Wallet-ID**
    - Encrypts and stores documents locally
@@ -288,6 +296,74 @@ All schemas are JSON-compatible and stored/transported off-chain unless noted. D
 - Encryption algorithm
 - Local key reference
 - Created timestamp
+
+## Blockchain Contracts & Oracle Infrastructure (Schemas)
+These describe the on-chain data structures and oracle flow in human-readable form.
+
+### IssuerRegistry (On-Chain)
+- Issuer ID
+- Starknet address
+- Issuer public keys (active + previous)
+- Status (active / suspended / revoked)
+- Created and updated timestamps
+
+### AttestationRegistry (On-Chain)
+- Commitment hash
+- Subject address
+- Issuer ID
+- Issued at and expiry timestamps
+- Schema version
+- Optional attestation type (KYC / KYB)
+
+### ProofVerifier (On-Chain)
+- Circuit ID
+- Circuit version
+- Verification key reference
+- Allowed claim schema IDs
+- Status (active / deprecated)
+
+### RevocationRegistry (On-Chain)
+- Revocation reference
+- Issuer ID
+- Revoked timestamp
+- Optional reason code
+
+### OracleRegistry (On-Chain)
+- Oracle ID
+- Oracle signer public key
+- Allowed report types (doc check, KYB check, sanctions check)
+- Status (active / suspended)
+- Created and updated timestamps
+
+### OracleReport (On-Chain or Off-Chain Anchor)
+- Report ID
+- Oracle ID
+- Subject address
+- Result status (pass / fail / manual review)
+- Evidence commitment hash
+- Report timestamp
+
+### CircuitRegistry (On-Chain)
+- Circuit ID
+- Circuit version
+- Claim schema ID
+- Verification key reference
+- Status (active / deprecated)
+
+### ProviderRegistry (On-Chain, Optional)
+- Provider ID
+- Provider public key
+- Allowed claim scopes
+- Status (active / revoked)
+
+## Oracle Infrastructure (How It Works)
+Oracles bridge off-chain verification results into on-chain attestations without exposing raw data.
+
+1. **Vendor check**: KYC/KYB vendors verify documents or business data off-chain.
+2. **Oracle signing**: The oracle signs a compact report containing result status and an evidence commitment hash.
+3. **On-chain anchor**: The oracle report is anchored on-chain (or referenced by hash), making the result auditable.
+4. **Issuer decision**: The issuer consumes the oracle report and issues an attestation if it passes.
+5. **Provider verification**: Providers verify issuer validity and check the oracle report reference if required by policy.
 
 ## ZK Proofs
 - Prove claims without revealing raw data.
