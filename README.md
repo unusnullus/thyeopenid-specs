@@ -67,12 +67,12 @@ graph TD
   end
 
   subgraph ProviderDomain
-    RP[Relying Party / Provider]
+    RP["Relying Party / Provider"]
     API[Provider API]
   end
 
   subgraph StorageDomain
-    S[Encrypted Storage (IPFS/S3)]
+    S["Encrypted Storage (IPFS/S3)"]
     M[Metadata Index]
   end
 
@@ -107,7 +107,7 @@ graph TD
 graph LR
   subgraph Mobile
     W[Wallet-ID App]
-    KS[Secure Enclave / Keystore]
+    KS["Secure Enclave / Keystore"]
   end
   subgraph Backend
     O[KYC/KYB Orchestrator]
